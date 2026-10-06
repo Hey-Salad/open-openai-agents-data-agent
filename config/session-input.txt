@@ -1,0 +1,5 @@
+We are testing the Data agent in a fresh OpenAI Agents API session.
+
+No warehouse connection, CSV files, dashboards, metric definitions, or business question have been provided yet.
+
+Return a concise data-analysis intake checklist, the missing configuration you need, and a recommended output structure for a reproducible analysis.
