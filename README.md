@@ -18,6 +18,14 @@ export OPENAI_API_KEY="your-api-key"
 
 The app uses OpenAI project `proj_mRsQVx3NjOamxeXH6UrLowoC` via the `OpenAI-Project` header by default.
 
+`POST /api/sessions` requires `Authorization: Bearer <SESSION_AUTH_SECRET>`. The secret must be at least 32 characters. A missing or shorter secret fails closed with HTTP 503. Set it as a Wrangler secret (do not commit it):
+
+```bash
+npx wrangler secret put SESSION_AUTH_SECRET
+```
+
+Before the bearer token is checked, each client IP is attempt-limited (`CF-Connecting-IP`, or a shared `ip:unknown` bucket when the header is absent). After authentication, a Durable Object caps session starts at 10 per 60 seconds for this Worker only. Identifiers are listed in `rollout/README.md`.
+
 ## Run Locally
 
 ```bash
@@ -30,6 +38,7 @@ npm run dev
 
 ```bash
 npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put SESSION_AUTH_SECRET
 npm run deploy
 ```
 
