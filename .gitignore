@@ -1,2 +1,5 @@
+node_modules/
 .agents-api-runs/
 .env
+.dev.vars
+.wrangler/

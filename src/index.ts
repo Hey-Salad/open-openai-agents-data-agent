@@ -1,11 +1,10 @@
 import agentDefinition from "../config/agent-definition.json";
+import type { Env } from "./env";
+import { jsonResponse } from "./http";
+import { guardSessionStart } from "./session-guard";
 
-interface Env {
-  OPENAI_API_KEY: string;
-  OPENAI_PROJECT: string;
-  OPENAI_BASE_URL: string;
-  AGENTS_ENVIRONMENT_TYPE: string;
-}
+export { SessionStartLimiter } from "./session-start-limiter";
+export { sessionAttemptKey } from "./session-guard";
 
 type AgentCreateResponse = {
   id?: string;
@@ -15,7 +14,7 @@ type AgentCreateResponse = {
 const DEFAULT_INPUT = "We are testing the Data agent in a fresh OpenAI Agents API session.\n\nNo warehouse connection, CSV files, dashboards, metric definitions, or business question have been provided yet.\n\nReturn a concise data-analysis intake checklist, the missing configuration you need, and a recommended output structure for a reproducible analysis.";
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx?: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/") {
@@ -27,6 +26,8 @@ export default {
     }
 
     if (request.method === "POST" && url.pathname === "/api/sessions") {
+      const denied = await guardSessionStart(request, env);
+      if (denied) return denied;
       return createAndStreamSession(request, env);
     }
 
@@ -149,13 +150,6 @@ async function openAiError(action: string, response: Response): Promise<Response
   );
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body, null, 2), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-  });
-}
-
 function htmlResponse(body: string): Response {
   return new Response(body, {
     headers: { "Content-Type": "text/html; charset=utf-8" },
@@ -224,6 +218,18 @@ function renderHome(): string {
       color: inherit;
       font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     }
+    input[type="password"] {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 42px;
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border: 1px solid #c9d1dc;
+      border-radius: 8px;
+      background: #ffffff;
+      color: inherit;
+      font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
     button {
       margin-top: 12px;
       min-height: 42px;
@@ -273,6 +279,8 @@ function renderHome(): string {
     <form id="agent-form">
       <label for="input">Initial user message</label>
       <textarea id="input" name="input">${escapeHtml(DEFAULT_INPUT)}</textarea>
+      <label for="token">Session bearer token</label>
+      <input id="token" name="token" type="password" autocomplete="off" spellcheck="false">
       <button id="run" type="submit">Run data agent</button>
     </form>
     <section aria-label="Session stream">
@@ -283,6 +291,7 @@ function renderHome(): string {
     const form = document.querySelector("#agent-form");
     const button = document.querySelector("#run");
     const output = document.querySelector("#output");
+    const token = document.querySelector("#token");
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -290,9 +299,11 @@ function renderHome(): string {
       output.textContent = "Starting session...\\n";
 
       try {
+        const headers = { "Content-Type": "application/json" };
+        if (token.value) headers.Authorization = "Bearer " + token.value;
         const response = await fetch("/api/sessions", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ input: form.input.value })
         });
 

@@ -4,11 +4,39 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-10-06",
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
   },
   "vars": {
     "OPENAI_PROJECT": "proj_mRsQVx3NjOamxeXH6UrLowoC",
-    "OPENAI_BASE_URL": "https://api.openai.com/v1",
+    "OPENAI_BASE_URL": "[REDACTED]",
     "AGENTS_ENVIRONMENT_TYPE": "openai_hosted"
-  }
+  },
+  "ratelimits": [
+    {
+      "name": "SESSION_ATTEMPT_LIMITER",
+      // Account-wide id. Do not reuse another twin's namespace_id; counters would merge.
+      "namespace_id": "748201",
+      "simple": {
+        "limit": 20,
+        "period": 60
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SESSION_START_LIMITER",
+        "class_name": "SessionStartLimiter"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "openai-agents-data-agent-session-start-v1",
+      "new_sqlite_classes": ["SessionStartLimiter"]
+    }
+  ]
 }
